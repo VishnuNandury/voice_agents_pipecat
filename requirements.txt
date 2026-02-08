@@ -1,0 +1,19 @@
+# Loan Collection Voice Agent - Dependencies
+# PipeCat core + required service integrations
+pipecat-ai[deepgram,openai,silero,runner,local-smart-turn-v3,webrtc]>=0.0.50
+
+# Environment management
+python-dotenv>=1.0.0
+
+# Web server
+fastapi>=0.115.6
+uvicorn>=0.32.0
+
+# HTTP client
+aiohttp>=3.11.0
+
+# Edge TTS (free Microsoft TTS, great Hindi support)
+edge-tts>=7.0.0
+
+# Logging
+loguru>=0.7.3

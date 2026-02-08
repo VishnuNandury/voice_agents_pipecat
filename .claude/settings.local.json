@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh api:*)",
+      "Bash(python -m base64:*)",
+      "Bash(powershell -Command \"[System.Text.Encoding]::UTF8.GetString\\([System.Convert]::FromBase64String\\(\\(Read-Host\\)\\)\\)\")",
+      "Bash(curl:*)",
+      "Bash(dir:*)",
+      "WebSearch",
+      "Bash(C:/clu_web/CONVERSE_BUSINESS/pipecat/venv/Scripts/python.exe -c \"import pipecat; print\\(''pipecat OK''\\)\")",
+      "Bash(C:/clu_web/CONVERSE_BUSINESS/pipecat/venv/Scripts/python.exe:*)",
+      "Bash(PYTHONIOENCODING=utf-8 C:/clu_web/CONVERSE_BUSINESS/pipecat/venv/Scripts/python.exe:*)",
+      "Bash(C:/clu_web/CONVERSE_BUSINESS/pipecat/venv/Scripts/pip.exe install \"pipecat-ai[webrtc]\")",
+      "Bash(C:/clu_web/CONVERSE_BUSINESS/pipecat/venv/Scripts/pip.exe install:*)"
+    ]
+  }
+}

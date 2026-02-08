@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickFinance - Loan Collection Agent</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .header h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #38bdf8;
+            letter-spacing: 0.05em;
+        }
+        .header p { color: #94a3b8; font-size: 0.85rem; margin-top: 0.25rem; }
+
+        .lang-tags {
+            display: flex; gap: 0.4rem; justify-content: center; margin-top: 0.5rem;
+        }
+        .lang-tag {
+            background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.25);
+            color: #38bdf8; padding: 0.15rem 0.6rem; border-radius: 999px;
+            font-size: 0.7rem; font-weight: 500;
+        }
+
+        /* Grid layout */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: rgba(30,41,59,0.85);
+            border: 1px solid rgba(56,189,248,0.12);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: border-color 0.3s;
+        }
+        .card:hover { border-color: rgba(56,189,248,0.35); }
+        .card.active { border-color: #22c55e; box-shadow: 0 0 20px rgba(34,197,94,0.15); }
+
+        .card-title {
+            font-size: 0.95rem; font-weight: 600; color: #f1f5f9;
+            margin-bottom: 0.6rem;
+        }
+
+        .badge-row { display: flex; gap: 0.4rem; margin-bottom: 0.8rem; flex-wrap: wrap; justify-content: center; }
+
+        .badge {
+            padding: 0.2rem 0.55rem; border-radius: 6px;
+            font-size: 0.68rem; font-weight: 600; letter-spacing: 0.02em;
+        }
+        .badge.stt { background: rgba(139,92,246,0.15); color: #a78bfa; border: 1px solid rgba(139,92,246,0.3); }
+        .badge.tts { background: rgba(251,146,60,0.15); color: #fb923c; border: 1px solid rgba(251,146,60,0.3); }
+        .badge.free { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+
+        .card-desc {
+            color: #94a3b8; font-size: 0.75rem; text-align: center;
+            margin-bottom: 1rem; line-height: 1.4; min-height: 2.8em;
+        }
+
+        /* Connect button */
+        .connect-btn {
+            width: 56px; height: 56px; border-radius: 50%;
+            border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.25s; position: relative;
+        }
+        .connect-btn.idle {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            box-shadow: 0 3px 15px rgba(34,197,94,0.35);
+        }
+        .connect-btn.idle:hover {
+            transform: scale(1.08);
+            box-shadow: 0 5px 25px rgba(34,197,94,0.5);
+        }
+        .connect-btn.launching {
+            background: #eab308; box-shadow: 0 3px 15px rgba(234,179,8,0.3);
+            cursor: wait;
+        }
+        .connect-btn.running {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            box-shadow: 0 3px 15px rgba(239,68,68,0.35);
+        }
+        .connect-btn.running:hover {
+            transform: scale(1.08);
+            box-shadow: 0 5px 25px rgba(239,68,68,0.5);
+        }
+        .connect-btn.running::before {
+            content: ''; position: absolute; width: 100%; height: 100%;
+            border-radius: 50%; border: 2px solid rgba(239,68,68,0.4);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+
+        .connect-btn svg { width: 24px; height: 24px; fill: white; }
+        .connect-btn:disabled { background: #475569; box-shadow: none; cursor: not-allowed; transform: none; }
+
+        .btn-label {
+            margin-top: 0.5rem; font-size: 0.72rem; color: #64748b;
+            min-height: 1.2em;
+        }
+
+        .status-text {
+            margin-top: 0.6rem; font-size: 0.78rem; color: #94a3b8;
+            min-height: 1.2em; text-align: center;
+        }
+        .status-text.connected { color: #4ade80; }
+        .status-text.error { color: #f87171; }
+
+        /* Footer */
+        .footer {
+            text-align: center; margin-top: 1.5rem;
+            font-size: 0.7rem; color: #475569;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .grid { grid-template-columns: 1fr; max-width: 400px; }
+        }
+
+        /* Spinner */
+        .spinner {
+            width: 24px; height: 24px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>QUICKFINANCE LTD.</h1>
+        <p>Loan Collection Voice Agent &mdash; Compare Pipelines</p>
+        <div class="lang-tags">
+            <span class="lang-tag">Hindi</span>
+            <span class="lang-tag">English</span>
+            <span class="lang-tag">Hinglish</span>
+        </div>
+    </div>
+
+    <div class="grid" id="grid"></div>
+
+    <div class="footer">
+        Powered by PipeCat AI &middot; Deepgram &middot; OpenAI &middot; Edge TTS
+    </div>
+
+    <script>
+    const CONFIGS = [
+        {
+            id: 'dg_oai',
+            stt: 'deepgram', tts: 'openai',
+            title: 'Deepgram + OpenAI TTS',
+            desc: 'Streaming STT with real-time OpenAI voice synthesis',
+            badges: [
+                { label: 'Deepgram Nova-3', cls: 'stt' },
+                { label: 'OpenAI TTS', cls: 'tts' },
+            ],
+        },
+        {
+            id: 'dg_edge',
+            stt: 'deepgram', tts: 'edge',
+            title: 'Deepgram + Edge TTS',
+            desc: 'Streaming STT with free Edge TTS (great Hindi pronunciation)',
+            badges: [
+                { label: 'Deepgram Nova-3', cls: 'stt' },
+                { label: 'Edge TTS', cls: 'tts' },
+                { label: 'Free TTS', cls: 'free' },
+            ],
+        },
+        {
+            id: 'wh_oai',
+            stt: 'whisper', tts: 'openai',
+            title: 'Whisper + OpenAI TTS',
+            desc: 'OpenAI Whisper transcription with OpenAI voice synthesis',
+            badges: [
+                { label: 'Whisper STT', cls: 'stt' },
+                { label: 'OpenAI TTS', cls: 'tts' },
+            ],
+        },
+        {
+            id: 'wh_edge',
+            stt: 'whisper', tts: 'edge',
+            title: 'Whisper + Edge TTS',
+            desc: 'OpenAI Whisper transcription with free Edge TTS',
+            badges: [
+                { label: 'Whisper STT', cls: 'stt' },
+                { label: 'Edge TTS', cls: 'tts' },
+                { label: 'Free TTS', cls: 'free' },
+            ],
+        },
+    ];
+
+    // State for each card
+    const state = {};
+    CONFIGS.forEach(c => {
+        state[c.id] = { status: 'idle', port: null }; // idle | launching | running
+    });
+
+    // SVG icons
+    const PHONE_ICON = `<svg viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>`;
+    const HANGUP_ICON = `<svg viewBox="0 0 24 24"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg>`;
+
+    function renderGrid() {
+        const grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        CONFIGS.forEach(cfg => {
+            const s = state[cfg.id];
+            const isActive = s.status === 'running';
+            const card = document.createElement('div');
+            card.className = `card${isActive ? ' active' : ''}`;
+            card.id = `card-${cfg.id}`;
+
+            const badgesHtml = cfg.badges.map(b =>
+                `<span class="badge ${b.cls}">${b.label}</span>`
+            ).join('');
+
+            let btnClass = 'connect-btn idle';
+            let btnContent = PHONE_ICON;
+            let btnLabel = 'Connect';
+            let statusHtml = '';
+
+            if (s.status === 'launching') {
+                btnClass = 'connect-btn launching';
+                btnContent = '<div class="spinner"></div>';
+                btnLabel = 'Starting...';
+                statusHtml = '<div class="status-text">Launching bot pipeline...</div>';
+            } else if (s.status === 'running') {
+                btnClass = 'connect-btn running';
+                btnContent = HANGUP_ICON;
+                btnLabel = 'Disconnect';
+                statusHtml = `<div class="status-text connected">Connected on port ${s.port} &mdash; <a href="http://localhost:${s.port}/client" target="_blank" style="color:#38bdf8;">Open Voice UI</a></div>`;
+            }
+
+            card.innerHTML = `
+                <div class="card-title">${cfg.title}</div>
+                <div class="badge-row">${badgesHtml}</div>
+                <div class="card-desc">${cfg.desc}</div>
+                <button class="${btnClass}" onclick="toggle('${cfg.id}')" id="btn-${cfg.id}">
+                    ${btnContent}
+                </button>
+                <div class="btn-label">${btnLabel}</div>
+                ${statusHtml}
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    async function toggle(id) {
+        const cfg = CONFIGS.find(c => c.id === id);
+        const s = state[id];
+
+        if (s.status === 'running') {
+            // Stop
+            try {
+                await fetch('/stop', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ port: s.port }),
+                });
+            } catch (e) { console.error(e); }
+            s.status = 'idle';
+            s.port = null;
+            renderGrid();
+            return;
+        }
+
+        if (s.status === 'launching') return;
+
+        // Launch
+        s.status = 'launching';
+        renderGrid();
+
+        try {
+            const resp = await fetch('/launch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stt: cfg.stt, tts: cfg.tts }),
+            });
+            const data = await resp.json();
+
+            if (resp.ok && data.port) {
+                s.status = 'running';
+                s.port = data.port;
+            } else {
+                s.status = 'idle';
+                alert('Failed to start: ' + (data.error || 'Unknown error'));
+            }
+        } catch (e) {
+            s.status = 'idle';
+            alert('Network error: ' + e.message);
+        }
+        renderGrid();
+    }
+
+    // Initial render
+    renderGrid();
+    </script>
+</body>
+</html>

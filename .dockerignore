@@ -1,0 +1,12 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.env
+.git/
+.claude/
+logs/
+*.md
+.gitignore
+.dockerignore
+render.yaml

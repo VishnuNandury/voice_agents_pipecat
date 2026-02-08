@@ -1,0 +1,30 @@
+services:
+  # Pipeline 1: Deepgram + OpenAI TTS (default)
+  - type: web
+    name: loan-agent
+    runtime: docker
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: TURN_URL
+        sync: false
+      - key: TURN_USERNAME
+        sync: false
+      - key: TURN_CREDENTIAL
+        sync: false
+      - key: PIPELINE_STT
+        value: deepgram
+      - key: PIPELINE_TTS
+        value: openai
+      - key: OPENAI_MODEL
+        value: gpt-4o
+      - key: OPENAI_TTS_VOICE
+        value: alloy
+      - key: DEEPGRAM_MODEL
+        value: nova-3
+      - key: DEEPGRAM_LANGUAGE
+        value: multi
