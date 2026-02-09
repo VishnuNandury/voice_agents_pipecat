@@ -47,6 +47,26 @@ from pipecat.transports.smallwebrtc.request_handler import (
 )
 
 
+def _parse_turn_urls(raw: str) -> List[str]:
+    """Parse TURN_URL which may contain multiple URLs separated by commas or whitespace.
+
+    Metered.ca and other providers give multiple URLs like:
+      turn:host:80, turn:host:443, turns:host:443?transport=tcp
+    Each URL must start with turn: turns: stun: or stuns:
+    """
+    urls = []
+    for part in raw.replace(",", " ").split():
+        part = part.strip()
+        if not part:
+            continue
+        # Validate it looks like a STUN/TURN URL
+        if part.split(":")[0] in ("stun", "stuns", "turn", "turns"):
+            urls.append(part)
+        else:
+            logger.warning(f"Skipping invalid TURN URL (missing scheme): {part}")
+    return urls
+
+
 def build_ice_servers():
     """Build ICE server list for both server-side (aiortc) and client-side (browser)."""
     server_ice = []   # IceServer objects for aiortc
@@ -57,24 +77,28 @@ def build_ice_servers():
     client_ice.append({"urls": ["stun:stun.l.google.com:19302"]})
 
     # Add TURN server if credentials provided
-    turn_url = (os.getenv("TURN_URL") or "").strip()
+    turn_url_raw = (os.getenv("TURN_URL") or "").strip()
     turn_username = (os.getenv("TURN_USERNAME") or "").strip()
     turn_credential = (os.getenv("TURN_CREDENTIAL") or "").strip()
 
-    if turn_url and turn_username and turn_credential:
-        logger.info(f"TURN server configured: {turn_url}")
-        server_ice.append(
-            IceServer(
-                urls=turn_url,
-                username=turn_username,
-                credential=turn_credential,
-            )
-        )
-        client_ice.append({
-            "urls": [turn_url],
-            "username": turn_username,
-            "credential": turn_credential,
-        })
+    if turn_url_raw and turn_username and turn_credential:
+        # Parse potentially multiple TURN URLs
+        turn_urls = _parse_turn_urls(turn_url_raw)
+        if not turn_urls:
+            logger.error(f"TURN_URL set but no valid URLs found: {turn_url_raw!r}")
+        else:
+            logger.info(f"TURN configured with {len(turn_urls)} URL(s): {turn_urls}")
+            # Add each URL as its own server-side IceServer (aiortc needs one URL per entry)
+            for url in turn_urls:
+                server_ice.append(
+                    IceServer(urls=url, username=turn_username, credential=turn_credential)
+                )
+            # For client-side, group all URLs in one entry (same credentials)
+            client_ice.append({
+                "urls": turn_urls,
+                "username": turn_username,
+                "credential": turn_credential,
+            })
     else:
         logger.warning(
             "No TURN server configured. WebRTC may fail behind NAT. "
@@ -153,6 +177,16 @@ async def health():
         "turn_configured": any(
             s.username for s in ICE_SERVERS if hasattr(s, "username") and s.username
         ),
+    }
+
+
+@app.get("/debug/ice")
+async def debug_ice():
+    """Show the exact ICE config that will be sent to clients (for debugging)."""
+    return {
+        "server_ice_count": len(ICE_SERVERS),
+        "client_ice_config": ICE_CONFIG_FOR_CLIENT,
+        "turn_url_raw": (os.getenv("TURN_URL") or "")[:80] + "..." if len(os.getenv("TURN_URL") or "") > 80 else (os.getenv("TURN_URL") or "(not set)"),
     }
 
 
