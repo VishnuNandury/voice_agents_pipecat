@@ -47,60 +47,51 @@ from pipecat.transports.smallwebrtc.request_handler import (
 )
 
 
-def build_ice_servers() -> List[IceServer]:
-    """Build ICE server list from environment variables."""
-    servers = []
+def build_ice_servers():
+    """Build ICE server list for both server-side (aiortc) and client-side (browser)."""
+    server_ice = []   # IceServer objects for aiortc
+    client_ice = []   # Plain dicts for browser RTCPeerConnection
 
     # Always include a STUN server
-    servers.append(IceServer(urls="stun:stun.l.google.com:19302"))
+    server_ice.append(IceServer(urls="stun:stun.l.google.com:19302"))
+    client_ice.append({"urls": ["stun:stun.l.google.com:19302"]})
 
     # Add TURN server if credentials provided
-    turn_url = os.getenv("TURN_URL")
-    turn_username = os.getenv("TURN_USERNAME")
-    turn_credential = os.getenv("TURN_CREDENTIAL")
+    turn_url = (os.getenv("TURN_URL") or "").strip()
+    turn_username = (os.getenv("TURN_USERNAME") or "").strip()
+    turn_credential = (os.getenv("TURN_CREDENTIAL") or "").strip()
 
     if turn_url and turn_username and turn_credential:
         logger.info(f"TURN server configured: {turn_url}")
-        servers.append(
+        server_ice.append(
             IceServer(
                 urls=turn_url,
                 username=turn_username,
                 credential=turn_credential,
             )
         )
-        # Also add TURNS (TLS) variant if it's a turn: URL
-        if turn_url.startswith("turn:"):
-            turns_url = turn_url.replace("turn:", "turns:", 1)
-            # Add port 443 for TURNS if no port specified
-            if ":" not in turns_url.split("turns:")[1].split("?")[0].rsplit(":", 1)[-1]:
-                pass  # Keep as-is, server handles port
-            servers.append(
-                IceServer(
-                    urls=turns_url,
-                    username=turn_username,
-                    credential=turn_credential,
-                )
-            )
+        client_ice.append({
+            "urls": [turn_url],
+            "username": turn_username,
+            "credential": turn_credential,
+        })
     else:
         logger.warning(
             "No TURN server configured. WebRTC may fail behind NAT. "
             "Set TURN_URL, TURN_USERNAME, TURN_CREDENTIAL in .env"
         )
 
-    return servers
+    return server_ice, client_ice
 
 
 # Build ICE config once at startup
-ICE_SERVERS = build_ice_servers()
+ICE_SERVERS, _CLIENT_ICE_LIST = build_ice_servers()
 
-# Client-side ICE config (returned in /start response)
-ICE_CONFIG_FOR_CLIENT = {
-    "iceServers": [
-        {"urls": s.urls, **({"username": s.username} if s.username else {}),
-         **({"credential": s.credential} if s.credential else {})}
-        for s in ICE_SERVERS
-    ]
-}
+# Client-side ICE config (returned in /start response for browser RTCPeerConnection)
+ICE_CONFIG_FOR_CLIENT = {"iceServers": _CLIENT_ICE_LIST}
+
+logger.info(f"ICE servers: {len(ICE_SERVERS)} (server-side)")
+logger.info(f"Client ICE config: {ICE_CONFIG_FOR_CLIENT}")
 
 # ---------------------------------------------------------------------------
 # Import bot module
@@ -174,18 +165,26 @@ async def offer(request: SmallWebRTCRequest, background_tasks: BackgroundTasks):
     """Handle WebRTC offer from the prebuilt client."""
     from pipecat.runner.types import SmallWebRTCRunnerArguments
 
+    logger.info("POST /api/offer received")
+
     async def webrtc_connection_callback(connection: SmallWebRTCConnection):
+        logger.info("WebRTC connection established, starting bot pipeline")
         runner_args = SmallWebRTCRunnerArguments(
             webrtc_connection=connection,
             body=request.request_data,
         )
         background_tasks.add_task(bot_module.bot, runner_args)
 
-    answer = await small_webrtc_handler.handle_web_request(
-        request=request,
-        webrtc_connection_callback=webrtc_connection_callback,
-    )
-    return answer
+    try:
+        answer = await small_webrtc_handler.handle_web_request(
+            request=request,
+            webrtc_connection_callback=webrtc_connection_callback,
+        )
+        logger.info("SDP answer generated successfully")
+        return answer
+    except Exception as e:
+        logger.error(f"Error handling WebRTC offer: {e}", exc_info=True)
+        raise
 
 
 @app.patch("/api/offer")
@@ -206,11 +205,14 @@ async def rtvi_start(request: Request):
     session_id = str(uuid.uuid4())
     active_sessions[session_id] = request_data.get("body", {})
 
-    # Always return ICE config with TURN servers
-    return {
-        "sessionId": session_id,
-        "iceConfig": ICE_CONFIG_FOR_CLIENT,
-    }
+    result = {"sessionId": session_id}
+
+    # Return ICE config (always include it so TURN works on cloud)
+    if request_data.get("enableDefaultIceServers") or ICE_CONFIG_FOR_CLIENT["iceServers"]:
+        result["iceConfig"] = ICE_CONFIG_FOR_CLIENT
+
+    logger.info(f"POST /start -> session={session_id}, iceServers={len(ICE_CONFIG_FOR_CLIENT['iceServers'])}")
+    return result
 
 
 @app.api_route(

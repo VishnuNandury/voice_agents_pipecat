@@ -14,7 +14,10 @@
       "Bash(C:/clu_web/CONVERSE_BUSINESS/pipecat/venv/Scripts/python.exe:*)",
       "Bash(PYTHONIOENCODING=utf-8 C:/clu_web/CONVERSE_BUSINESS/pipecat/venv/Scripts/python.exe:*)",
       "Bash(C:/clu_web/CONVERSE_BUSINESS/pipecat/venv/Scripts/pip.exe install \"pipecat-ai[webrtc]\")",
-      "Bash(C:/clu_web/CONVERSE_BUSINESS/pipecat/venv/Scripts/pip.exe install:*)"
+      "Bash(C:/clu_web/CONVERSE_BUSINESS/pipecat/venv/Scripts/pip.exe install:*)",
+      "Bash(C:\\\\clu_web\\\\CONVERSE_BUSINESS\\\\pipecat\\\\venv\\\\Scripts\\\\python.exe -c:*)",
+      "Bash(venv/Scripts/python.exe -c:*)",
+      "Bash(python -m json.tool:*)"
     ]
   }
 }
